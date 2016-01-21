@@ -3,10 +3,11 @@ import paho.mqtt.client as mqtt
 import serial
 import time
 import sys
+import traceback
 from io import StringIO
 
-#SERIAL_PORT    = '/dev/ttyAMA0'   #RPi
-SERIAL_PORT    = 'COM4'            #Windows
+SERIAL_PORT    = '/dev/ttyAMA0'   #RPi
+#SERIAL_PORT    = 'COM4'            #Windows
 SERIAL_BAUD    = 9600
 SERIAL_TIMEOUT = 1
 
@@ -39,7 +40,7 @@ DEV_STATUS_ID   = 999
 DEV_VERSION_ID  = 1003
 DEV_EYES_ID     = 1007
 
-DATA_STATUS_BLACK   = '000000'  # 
+DATA_STATUS_BLACK   = '000000'  #
 DATA_STATUS_RED     = 'FF0000'  #                               Me: Process failed.
 DATA_STATUS_YELLOW  = 'FFFF00'  #                               Me: No ACK from shield.
 DATA_STATUS_GREEN   = '00FF00'  # All good.                     Me: All good.
@@ -48,10 +49,10 @@ DATA_STATUS_BLUE    = '0000FF'  # Cannot connect to shield.     Me: Cannot conne
 DATA_STATUS_MAGENTA = 'FF00FF'  # Waiting to be paired.         Me: Invalid message received from shield.
 DATA_STATUS_WHITE   = 'FFFFFF'  #                               Me: Cannot connect to network.
 
-DATA_STATUS_TEXT = {DATA_STATUS_BLACK: 'Status Unknown', 
-                    DATA_STATUS_RED: 'DISCONNECTED', 
-                    DATA_STATUS_YELLOW: 'MODULE UNRESPONSIVE', 
-                    DATA_STATUS_GREEN: 'ONLINE', 
+DATA_STATUS_TEXT = {DATA_STATUS_BLACK: 'Status Unknown',
+                    DATA_STATUS_RED: 'DISCONNECTED',
+                    DATA_STATUS_YELLOW: 'MODULE UNRESPONSIVE',
+                    DATA_STATUS_GREEN: 'ONLINE',
                     DATA_STATUS_CYAN: 'MODULE ERROR',
                     DATA_STATUS_BLUE: 'OFFLINE',
                     DATA_STATUS_MAGENTA: 'MODULE GARBLED',
@@ -116,20 +117,20 @@ def getVersion():
         sendSerialCommand(MSG_TYPE_DEVICE, GUID_ID, VENDOR_ID, DEV_VERSION_ID, 0, 0.0, 'VNO', True, False)
     except:
         pass
-    
+
 
 
 #MQTT Callbacks
 def on_connect(client, userdata, flags, rc):
     print('Connected with result code ' + str(rc))
     client.subscribe(MQTT_TOPIC_BASE + '/#')
-    global isConnectedToNetwork 
+    global isConnectedToNetwork
     isConnectedToNetwork = True
 
 def on_disconnect(client, userdata, rc):
     if rc != 0:
         print('Unexpected disconnect with result code ' + str(rc))
-    global isConnectedToNetwork 
+    global isConnectedToNetwork
     isConnectedToNetwork = False
 
 
@@ -162,7 +163,7 @@ def receiveMQTT(mqtt_topic, data):
             print('Unrecognised characters in data')
     else:
         print('Unrecognised topic: ' + mqtt_topic)
-     
+
 
 #RECEIVE SERIAL
 def receiveSerial():
@@ -172,8 +173,8 @@ def receiveSerial():
         if(len(strLine) > 0):
             print("RX SERIAL : " + strLine.strip('\r\n'))
             decodeSerial(strLine)
-            
-            
+
+
 def decodeSerial(data):
     global lastSerialMessageError
     global lastSerialMessageAcked
@@ -231,7 +232,7 @@ def decodeSerial(data):
                 pass
 
             ids = dict[MSG_TYPE_DEVICE]
-            try: 
+            try:
                 if len(ids) == 1:
                     guid = ids[0][GUID_CODE]
                     vid  = ids[0][VENDOR_CODE]
@@ -355,12 +356,14 @@ def adjustForRfHexToBinary(dict, msgType):
 
 #region Main Method
 #MAIN METHOD
+time.sleep(1) #This script is normally run at startup, so this will give the network time to get up.
 try:
     ser = serial.Serial(SERIAL_PORT, timeout=0.5)
     isConnectedToShield = True
     getVersion()
 except:
     print("Something went wrong connecting to the serial port")
+    traceback.print_exc(file=sys.stdout)
 
 try:
     client = mqtt.Client(client_id=MQTT_CLIENT_ID, clean_session=True, userdata=None)
@@ -376,6 +379,7 @@ try:
 
 except:
     print("Something went wrong connecting to the mqtt server.")
+    traceback.print_exc(file=sys.stdout)
 
 try:
     while True:
@@ -383,7 +387,10 @@ try:
         time.sleep(0.1)
         checkStatusLED()
 except:
-    pass
+    print("Unexpected exception")
+    traceback.print_exc(file=sys.stdout)
+#    print("Unexpected error:" + str(sys.exc_info()[0]) + ', ' + str(sys.exc_info()[1]))
+#    print(sys.exc_info()[2])
 
 sendStatus(DATA_STATUS_RED)
 client.loop_stop()
