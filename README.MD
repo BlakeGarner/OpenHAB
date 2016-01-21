@@ -20,5 +20,18 @@
 7. Install needed python packages: `sudo pip3 install paho-mqtt pyserial`
 8. Copy the python script `mqttToArduinoCape.py` into your scripts directory (I put them all into `~/python-scripts/`)
 9. Check the serial port defined in mqttToArduinoCape.py `SERIAL_PORT` matches the serial port in `/dev/`. (`/dev/ttyAMA0` in my RPi2's case)
-10. `sudo crontab -e` and add the following line to the bottom: `@reboot python3 /home/pi/python-scripts/mqttToArduinoCape.py &`
-11. Reboot: `sudo shutdown -r now` and check the script is running by sending a command to the pi.
+10. `sudo apt-get install upstart` (This is for auto-startup/respawn)
+11. `sudo nano /etc/init/mqttScript.conf` and make the following entry:
+`description "Script to begin MQTT NinjaBlock Shield Python Script"
+author "Blake Garner"
+
+start on startup
+stop on shutdown
+
+script
+  export HOME="/home/pi"
+  exec python3 /home/pi/python-scripts/mqttToArduinoCape.py >> /var/log/mqttToArduinoCape.log
+end script
+respawn`
+12. `sudo /etc/rc.local` and add the following line to start the above upstart script: `start mqttScript`
+13. Reboot: `sudo shutdown -r now` and check the script is running by sending a command to the pi.
